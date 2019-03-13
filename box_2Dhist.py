@@ -2,7 +2,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.collections import PatchCollection
 from matplotlib.patches import Rectangle
-from root_numpy import hist2array
 import uproot
 # from pyik.numpyext import centers
 
@@ -18,7 +17,7 @@ def make_box (i,j,narrxy,bins,vmin,vmax,scale):
     dy=np.diff(y)
     narrx,narry = (0,0)
     norm= hist2D_norm(arrxy, bins)
-    if scale == "linear":
+    if scale == 'linear':
         if vmin == None and vmax == None:
             narrx= np.sqrt( ( arrxy[i,j]  )  / norm  ) * dx[i]
             narry= np.sqrt( ( arrxy[i,j]  )  / norm  ) * dy[j]
@@ -30,23 +29,25 @@ def make_box (i,j,narrxy,bins,vmin,vmax,scale):
 
             narrx= ( ( arrxy[i,j] - vmin )  / vmax ) * dx[i]
             narry= ( ( arrxy[i,j] - vmin )  / vmax ) * dy[j]
-    if scale == "log":
-        if vmin == None and vmax == None:
-            narrx= (1-0.5*( np.log10( arrxy[i,j]/norm  ) ))* dx[i]
-            narry= (1-0.5*( np.log10( arrxy[i,j]/norm  )) )* dy[j]
-        else:
-            if arrxy[i,j] > vmax :
-                arrxy[i,j] = vmax
-            if arrxy[i,j] < vmin:
-                arrxy[i,j]= vmin
-        narrx= (1 - np.log(arrxy[i,j]) / np.log(vmin)) *dx[i]
-        narry= (1- np.log(arrxy[i,j]) / np.log(vmin) ) *dy[j]
-            # narrx= ( np.log( arrxy[i,j]  )  / np.log(vmax) ) * dx[i]
-            # narry= ( np.log( arrxy[i,j]  )  / np.log(vmax) ) * dy[j]
+    if scale == 'log':
+        # if vmin == None and vmax == None:
+        #     narrx= (1-0.5*( np.log10( arrxy[i,j]/norm  ) ))* dx[i]
+        #     narry= (1-0.5*( np.log10( arrxy[i,j]/norm  )) )* dy[j]
+        # else:
+        if arrxy[i,j] > vmax :
+            arrxy[i,j] = vmax
+        if arrxy[i,j] < vmin:
+            arrxy[i,j]= vmin
+        # narrx = (dx[i] *( np.log10(arrxy[i,j]/vmax) ))
+        # narry = dy[i] *( np.log10(arrxy[i,j]/vmax) )
 
-    return Rectangle((x[i],y[j]),(narrx),(narry),fill=False)
+        # narrx= 0.5*dx[i]-( np.log10(arrxy[i,j] / vmin)) *0.5*dx[i]
+        # narry= 0.5*dy[j]-(np.log10(arrxy[i,j] /vmin) ) ) *0.5*dy[j]
+        narrx= (1- np.log( arrxy[i,j]  )  / np.log(vmin) ) * dx[i]
+        narry= (1- np.log( arrxy[i,j]  )  / np.log(vmin) ) * dy[j]
+    return Rectangle((x[i] +(dx[i]-(narrx))/2.0 , y[j]+(dy[j]-(narry))/2.0 ),(narrx),(narry),fill=False)
 
-def root_box_plot(ax,hist2D,vmin=None,vmax=None, scale ='linear',**kwargs):
+def root_box_plot(ax, x_bins, y_bins, arr2D, vmin=None, vmax=None, scale ='linear',**kwargs):
     """
     Plots a ROOT 2D histogram in box get_style
     the area of the box is equal to the value of the bin/norm of the histogram.
@@ -55,7 +56,9 @@ def root_box_plot(ax,hist2D,vmin=None,vmax=None, scale ='linear',**kwargs):
     ----------
     ax: plot axis
     matplotlib.pyplot.axis
-    hist2D: ROOT TH2 object (2 histogram)
+    x_bins : x bin edges
+    y_bins, y bin edges
+    arr2D: bin contents
     vmin : minimum value, zero size box
     vmax : maximum value, full bin width box
     **kwagrs (facecolor , edgecolor alpha... )
@@ -71,9 +74,7 @@ def root_box_plot(ax,hist2D,vmin=None,vmax=None, scale ='linear',**kwargs):
     if you do not have root histograms, use Hist2D from
     rootpy.plotting to create one
     """
-    arr2D, bins = hist2array(hist2D,return_edges= True)  # hist2D.numpy()
-    x_bins= bins[0]
-    y_bins= bins[1]
+
     boxes =[]
     m = x_bins.shape[-1]-1
     n=y_bins.shape[-1]-1
@@ -113,29 +114,30 @@ def root_box_plot(ax,hist2D,vmin=None,vmax=None, scale ='linear',**kwargs):
 #
 # # Example 2
 #
-# f_rmu= root_open("~/charged-hadron-spectra/root_files/response_matrix_magdown_MC.root")
-# histo_rm1u= f_rmu.eta_b1  #2,2.5
-# ax = plt.axes()
-# root_box_plot(ax,histo_rm1u, vmin=0.01, vmax= 10 , scale= 'log' ,facecolor='C4',edgecolor='C3',alpha=0.5)
-# arr, bins  = hist2array(histo_rm1u, return_edges= True)
-#
-#
-# x_bins= bins[0]
-# y_bins= bins[1]
-#
-# m = x_bins.shape[-1]-1
-# n=y_bins.shape[-1]-1
-# normx = np.sum(arr,axis=1)
-# arr= arr/normx
-# for j in range(n): # over x-axis
-#     for i in range(m): #over y-axis
-#         if arr[i,j] > 1:
-#             arr[i,j] = 1
-#         if arr[i,j] <0.01:
-#             arr[i,j] =0.01
-#
-#
-# plt.xlabel(r" Truth  matched $p_T$ [GeV/c] ")
-# plt.ylabel(r"Rec $p_T$ [GeV/c]")
-# plt.title(r"Response matrix , $\eta \in [2.0,\,2.5)$  ")
-# plt.show()
+f_rmu= uproot.open("/Users/lina/charged-hadron-spectra/bin_to_bin/root_files/response_matrix_magdown_MC.root")
+histo_rm1u= f_rmu['eta_b1']  #2,2.5
+arr, bins  = (histo_rm1u).numpy()
+x_bins= bins[0]
+y_bins= bins[1]
+
+m = x_bins.shape[-1]-1
+n=y_bins.shape[-1]-1
+normx = np.sum(arr,axis=1)
+arr= arr/normx
+for j in range(n): # over x-axis
+    for i in range(m): #over y-axis
+        if arr[i,j] > 1:
+            arr[i,j] = 1
+        if arr[i,j] <0.01:
+            arr[i,j] =0.01
+ax = plt.axes()
+root_box_plot(ax,x_bins, y_bins, arr, vmin=1e-2, vmax= 2,scale='log'  ,edgecolor='crimson',facecolor='slateblue',alpha=0.5)
+
+ax.yaxis.set_major_locator(plt.MultipleLocator(1.0))
+ax.yaxis.set_minor_locator(plt.MultipleLocator(0.25))
+ax.xaxis.set_major_locator(plt.MultipleLocator(1))
+ax.xaxis.set_minor_locator(plt.MultipleLocator(0.25))
+plt.xlabel(r" Truth  matched $p_T$ [GeV/c] ")
+plt.ylabel(r"Rec $p_T$ [GeV/c]")
+plt.title(r"Response matrix , $\eta \in [2.0,\,2.5)$  ")
+plt.show()
